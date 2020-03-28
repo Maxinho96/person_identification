@@ -2,15 +2,17 @@ import tensorflow.keras as keras
 
 
 def get_standard_model(num_classes):
-    base_model = keras.applications.nasnet.NASNetLarge(weights="imagenet",
-                                                       include_top=False)
+    base_model = keras.applications.nasnet.NASNetLarge(
+        weights="imagenet",
+        include_top=False,
+        pooling="avg"
+    )
 
     inputs = base_model.input
     base_outputs = base_model.output
-    avg = keras.layers.GlobalAveragePooling2D(name="avg")(base_outputs)
     outputs = keras.layers.Dense(units=num_classes,
                                  activation="softmax",
-                                 name="output")(avg)
+                                 name="output")(base_outputs)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
 
@@ -18,23 +20,22 @@ def get_standard_model(num_classes):
 
 
 def get_fcn_model(num_classes):
-    inputs = keras.Input(shape=(None, None, 3), name="input")
+    base_model = keras.applications.xception.Xception(
+        weights="imagenet",
+        include_top=False,
+        input_shape=(None,
+                     None,
+                     3)
+    )
 
-    base_model = keras.applications.nasnet.NASNetLarge(weights="imagenet",
-                                                       include_top=False)
-    base_model.layers.pop(0)
-    base_outputs = base_model(inputs).output
-
-    # inputs = base_model.input
-    # base_outputs = base_model_newinput.output
+    inputs = base_model.input
+    base_outputs = base_model.output
     conv = keras.layers.Conv2D(filters=num_classes,
                                kernel_size=1,
                                strides=1,
                                padding="same",
                                name="conv1x1")(base_outputs)
-
-    avg = keras.layers.GlobalAveragePooling2D(name="avg")(conv)
-    outputs = avg
+    outputs = keras.layers.GlobalAveragePooling2D(name="avg")(conv)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
 
