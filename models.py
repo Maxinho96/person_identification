@@ -2,7 +2,8 @@ import tensorflow.keras as keras
 
 
 def get_standard_model(num_classes):
-    base_model = keras.applications.nasnet.NASNetLarge(
+    base_model = keras.applications.xception.Xception(
+        # keras.applications.nasnet.NASNetLarge(
         weights="imagenet",
         include_top=False,
         pooling="avg"
@@ -23,9 +24,7 @@ def get_fcn_model(num_classes):
     base_model = keras.applications.xception.Xception(
         weights="imagenet",
         include_top=False,
-        input_shape=(None,
-                     None,
-                     3)
+        input_shape=(None, None, 3)
     )
 
     inputs = base_model.input
