@@ -68,6 +68,7 @@ def split_video(video_path, dest_dir, silhouettes_dir):
 
         image_path = os.path.join(dest_dir, image_name + ".jpg")
         if image_masked is not None and not os.path.exists(image_path):
+            print("Writing image")
             cv2.imwrite(image_path, image_masked)
 
         success, image = vidcap.read()
@@ -92,22 +93,40 @@ def apply_mask(image, image_name, silhouettes_dir):
     if os.path.exists(mask_path):
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-        if image.shape[:2] != mask.shape[:2]:
-            print(image_name, "size mismatch", mask_name)
+        # Find the bbox around the mask
+        bbox = cv2.boundingRect(mask)
+        x, y, w, h = bbox
+        # Crop the mask using the bbox coordinates
+        mask = mask[y:y+h+1, x:x+w+1]
+        # Crop the image using the bbox coordinates
+        image = image[y:y+h+1, x:x+w+1]
 
-            ver_dif = image.shape[0] - mask.shape[0]
-            hor_dif = image.shape[1] - mask.shape[1]
+        # This code was to account for size mismatches between image and mask,
+        # but if I crop the image and the mask to the bbox size this is not
+        # needed anymore.
+        # if image.shape[:2] != mask.shape[:2]:
+        #     print(image_name, "size mismatch", mask_name)
 
-            mask = cv2.copyMakeBorder(
-                mask,
-                0,
-                ver_dif,
-                0,
-                hor_dif,
-                cv2.BORDER_CONSTANT,
-                value=[0, 0, 0])
+        #     ver_dif = image.shape[0] - mask.shape[0]
+        #     hor_dif = image.shape[1] - mask.shape[1]
+
+        #     mask = cv2.copyMakeBorder(
+        #         mask,
+        #         0,
+        #         ver_dif,
+        #         0,
+        #         hor_dif,
+        #         cv2.BORDER_CONSTANT,
+        #         value=[0, 0, 0])
 
         masked_image = cv2.bitwise_and(image, image, mask=mask)
+
+        # cv2.imshow("i", masked_image)
+        # while True:
+        #     k=cv2.waitKey(1)
+        #     if k == ord("q"):
+        #         break
+
     # Return None if image doesn't have its mask
     return masked_image
 
