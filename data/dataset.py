@@ -15,17 +15,49 @@ flags.DEFINE_string("dataset",
 flags.DEFINE_boolean("random_flip",
                      True,
                      "Use or not random flip data augmentation")
+flags.DEFINE_boolean("random_hue",
+                     True,
+                     "Use or not random hue data augmentation")
+flags.DEFINE_boolean("random_saturation",
+                     True,
+                     "Use or not random saturation data augmentation")
 flags.DEFINE_boolean("cache",
                      True,
                      "Cache the dataset in RAM or not")
 # TODO: aggiungere tutti i flag di data augmentation
 
 
-def augment_image(image):
+def preprocess(image, size):
+    # Resize the image to the desired size.
+    if size is not None:
+        image = tf.image.resize_with_pad(image, size, size)
+    # Convert uint8 image to float32 image
+    image = tf.cast(image, tf.float32)
+    # Preprocess input for Xception
+    # (this wants an RGB float image in range [0., 255.], and gives
+    # an RGB float image in range [-1., 1.]
+    image = keras.applications.xception.preprocess_input(image)
+
     return image
 
 
-def preprocess_file(file_path, class_names, size, augment):
+def augment_and_preprocess(image, label, size):
+    # Randomly flip the image horizontally.
+    if FLAGS.random_flip:
+        image = tf.image.random_flip_left_right(image)
+    # Randomly adjust the image hue.
+    if FLAGS.random_hue:
+        image = tf.image.random_hue(image, 0.08)
+        # Randomly adjust the image saturation.
+    if FLAGS.random_saturation:
+        image = tf.image.random_saturation(image, 0, 0.7)
+
+    image = preprocess(image, size)
+
+    return image, label
+
+
+def decode_image(file_path, class_names, size, do_preprocessing):
     # Convert the path to a list of path components
     parts = tf.strings.split(file_path, os.path.sep)
     # The second to last is the class-directory
@@ -34,49 +66,12 @@ def preprocess_file(file_path, class_names, size, augment):
     image = tf.io.read_file(file_path)
     # Convert the compressed string to a 3D uint8 tensor
     image = tf.image.decode_jpeg(image, channels=3)
-    # Do data augmentation
-    if augment:
-        image = augment_image(image)
-    # Convert uint8 image to float32 image
-    image = tf.cast(image, tf.float32)
-    # Resize the image to the desired size.
-    if size is not None:
-        image = tf.image.resize(image, size)
-    # Preprocess input for Xception
-    # (this wants an RGB float image in range [0., 255.], and gives
-    # an RGB float image in range [-1., 1.]
-    image = keras.applications.xception.preprocess_input(image)
+    # Preprocessing can be done here or not. It must be done after data
+    # augmentation for the train split.
+    if do_preprocessing:
+        image = preprocess(image, size)
 
     return image, label
-
-
-# def prepare_dataset(split,
-#                     first_class,
-#                     last_class,
-#                     skip_classes,
-#                     size):
-#     dataset_dir = os.path.join(FLAGS.dataset, split)
-
-#     class_names = sorted(os.listdir(dataset_dir))
-
-#     start = class_names.index(first_class)
-#     end = class_names.index(last_class) + 1
-#     class_names = class_names[start:end]
-#     class_names = [c for c in class_names if c not in skip_classes]
-
-#     pattern = os.path.join(dataset_dir, "*", "*")
-#     filenames_ds = tf.data.Dataset.list_files(pattern)
-
-#     augment = split == "train"
-#     preprocess_fn = partial(preprocess_file,
-#                             class_names=class_names,
-#                             size=size,
-#                             augment=augment)
-#     AUTOTUNE = tf.data.experimental.AUTOTUNE
-#     labeled_ds = filenames_ds.map(preprocess_fn,
-#                                   num_parallel_calls=AUTOTUNE)
-
-#     return 
 
 
 # Returns the dataset split indicated in the split parameter.
@@ -90,6 +85,8 @@ def load(split="train",
          size=None,
          batch_size=8):
     if split in os.listdir(FLAGS.dataset):
+        AUTOTUNE = tf.data.experimental.AUTOTUNE
+
         dataset_dir = os.path.join(FLAGS.dataset, split)
 
         class_names = sorted(os.listdir(dataset_dir))
@@ -103,23 +100,30 @@ def load(split="train",
         pattern = [os.path.join(dataset_dir, c, "*") for c in class_names]
         filenames_ds = tf.data.Dataset.list_files(pattern)
 
-        # Do data augmentation only on train split.
-        augment = split == "train"
-        preprocess_fn = partial(preprocess_file,
-                                class_names=class_names,
-                                size=size,
-                                augment=augment)
-        AUTOTUNE = tf.data.experimental.AUTOTUNE
-        # Load, preprocess and augment images.
-        labeled_ds = filenames_ds.map(preprocess_fn,
+        # Preprocess images after decoding only if split is not train.
+        # Preprocessing is done after augmentation if split is train.
+        do_preprocessing = split != "train"
+        # Decode and optionally preprocess images and add labels.
+        decode_fn = partial(decode_image,
+                            class_names=class_names,
+                            size=size,
+                            do_preprocessing=do_preprocessing)
+        labeled_ds = filenames_ds.map(decode_fn,
                                       num_parallel_calls=AUTOTUNE)
 
         # Cache the dataset if fits in memory.
         if FLAGS.cache:
             labeled_ds = labeled_ds.cache()
 
+        # Do data augmentation and preprocessing now if it wasn't done before.
+        if not do_preprocessing:
+            augment_fn = partial(augment_and_preprocess,
+                                 size=size)
+            labeled_ds = labeled_ds.map(augment_fn,
+                                        num_parallel_calls=AUTOTUNE)
+
         # Shuffle the dataset.
-        labeled_ds = labeled_ds.shuffle(buffer_size=100)
+        labeled_ds = labeled_ds.shuffle(buffer_size=1000)
 
         # Repeat the dataset undefinitely.
         labeled_ds = labeled_ds.repeat()
@@ -164,28 +168,3 @@ def load(split="train",
 
     else:
         print("Cannot load {} split, directory not found!".format(split))
-
-
-# Returns the dataset splits indicated in the splits parameter.
-# You can specify the interval of classes to use, setting first_class and
-# last_class. You can also skip some classes of the interval setting
-# skip_classes.
-# def get_datasets(splits=("train", "val", "test"),
-#                  first_class="001",
-#                  last_class="014",
-#                  skip_classes=(),
-#                  size=None):
-#     datasets = []
-#     for split in splits:
-#         if split in os.listdir(FLAGS.dataset):
-#             dataset = prepare_dataset(split,
-#                                       first_class,
-#                                       last_class,
-#                                       skip_classes,
-#                                       size)
-#             datasets.append(dataset)
-
-#         else:
-#             print("Skipping {} split, directory not found!".format(split))
-
-#     return datasets
