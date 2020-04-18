@@ -21,6 +21,12 @@ flags.DEFINE_boolean("random_hue",
 flags.DEFINE_boolean("random_saturation",
                      True,
                      "Use or not random saturation data augmentation")
+flags.DEFINE_boolean("random_contrast",
+                     True,
+                     "Use or not random contrast data augmentation")
+flags.DEFINE_boolean("random_brightness",
+                     True,
+                     "Use or not random brightness data augmentation")
 flags.DEFINE_boolean("cache",
                      True,
                      "Cache the dataset in RAM or not")
@@ -47,10 +53,16 @@ def augment_and_preprocess(image, label, size):
         image = tf.image.random_flip_left_right(image)
     # Randomly adjust the image hue.
     if FLAGS.random_hue:
-        image = tf.image.random_hue(image, 0.08)
-        # Randomly adjust the image saturation.
+        image = tf.image.random_hue(image, 0.2)
+    # Randomly adjust the image saturation.
     if FLAGS.random_saturation:
-        image = tf.image.random_saturation(image, 0, 0.7)
+        image = tf.image.random_saturation(image, 0, 1.25)
+    # Randomly adjust the image contrast.
+    if FLAGS.random_contrast:
+        image = tf.image.random_contrast(image, 0.85, 3.5)
+    # Randomly adjust the image brightness.
+    if FLAGS.random_brightness:
+        image = tf.image.random_brightness(image, 0.075)
 
     image = preprocess(image, size)
 
