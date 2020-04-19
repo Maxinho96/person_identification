@@ -13,6 +13,12 @@ flags.DEFINE_boolean("fcn",
 flags.DEFINE_integer('batch_size',
                      8,
                      'Batch size')
+flags.DEFINE_boolean("cache_train",
+                     True,
+                     "Cache the training set in RAM or not")
+flags.DEFINE_boolean("cache_val",
+                     True,
+                     "Cache the validation set in RAM or not")
 
 
 def show_batch(image_batch, label_batch, class_names):
@@ -28,23 +34,12 @@ def show_batch(image_batch, label_batch, class_names):
 
 
 def main(_argv):
-    dataset, class_names = data.dataset.load(first_class="001",
-                                             last_class="025",
-                                             skip_classes=("002",
-                                                           "005",
-                                                           "006",
-                                                           "007",
-                                                           "010",
-                                                           "012",
-                                                           "016",
-                                                           "020",
-                                                           "021",
-                                                           "022",
-                                                           "024"),
-                                             size=None,
-                                             split="train")
+    training_set, class_names = data.dataset.load(split="train",
+                                                  size=None,
+                                                  batch_size=8,
+                                                  cache=FLAGS.cache_train)
 
-    for image_batch, label_batch in dataset:
+    for image_batch, label_batch in training_set:
         show_batch(image_batch.numpy(), label_batch.numpy(), class_names)
         if input() == "q":
             break

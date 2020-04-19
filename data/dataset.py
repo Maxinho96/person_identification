@@ -12,6 +12,16 @@ from functools import partial
 flags.DEFINE_string("dataset",
                     "data/casia_gait/DatasetB_split",
                     "Path to dataset")
+flags.DEFINE_string("first_class",
+                    "001",
+                    "The first class to consider")
+flags.DEFINE_string("last_class",
+                    "025",
+                    "The last class to consider")
+flags.DEFINE_list('skip_classes',
+                  "002,005,006,007,010,012,016,020,021,022,024",
+                  "These classes will not be considered")
+# Data augmentation flags
 flags.DEFINE_boolean("random_flip",
                      True,
                      "Use or not random flip data augmentation")
@@ -27,10 +37,6 @@ flags.DEFINE_boolean("random_contrast",
 flags.DEFINE_boolean("random_brightness",
                      True,
                      "Use or not random brightness data augmentation")
-flags.DEFINE_boolean("cache",
-                     True,
-                     "Cache the dataset in RAM or not")
-# TODO: aggiungere tutti i flag di data augmentation
 
 
 def preprocess(image, size):
@@ -78,8 +84,8 @@ def decode_image(file_path, class_names, size, do_preprocessing):
     image = tf.io.read_file(file_path)
     # Convert the compressed string to a 3D uint8 tensor
     image = tf.image.decode_jpeg(image, channels=3)
-    # Preprocessing can be done here or not. It must be done after data
-    # augmentation for the train split.
+    # Preprocessing can be done here or not. If you do data augmentation,
+    # preprocessing is done after it.
     if do_preprocessing:
         image = preprocess(image, size)
 
@@ -87,15 +93,11 @@ def decode_image(file_path, class_names, size, do_preprocessing):
 
 
 # Returns the dataset split indicated in the split parameter.
-# You can specify the interval of classes to use, setting first_class and
-# last_class. You can also skip some classes of the interval setting
-# skip_classes.
+# If size is None, images are not resized and dynamic batches are created.
 def load(split="train",
-         first_class="001",
-         last_class="014",
-         skip_classes=(),
          size=None,
-         batch_size=8):
+         batch_size=8,
+         cache=True):
     if split in os.listdir(FLAGS.dataset):
         AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -103,10 +105,10 @@ def load(split="train",
 
         class_names = sorted(os.listdir(dataset_dir))
 
-        start = class_names.index(first_class)
-        end = class_names.index(last_class) + 1
+        start = class_names.index(FLAGS.first_class)
+        end = class_names.index(FLAGS.last_class) + 1
         class_names = class_names[start:end]
-        class_names = [c for c in class_names if c not in skip_classes]
+        class_names = [c for c in class_names if c not in FLAGS.skip_classes]
 
         # Load files.
         pattern = [os.path.join(dataset_dir, c, "*") for c in class_names]
@@ -124,7 +126,7 @@ def load(split="train",
                                       num_parallel_calls=AUTOTUNE)
 
         # Cache the dataset if fits in memory.
-        if FLAGS.cache:
+        if cache:
             labeled_ds = labeled_ds.cache()
 
         # Do data augmentation and preprocessing now if it wasn't done before.
@@ -143,7 +145,7 @@ def load(split="train",
         # Create batches using buckets: images with similar height will
         # be in the same batch. Minimum extra padding is added if needed.
         # Buckets are intervals of 10 pixels, from 60 to 200.
-        bucket_boundaries = [i for i in range(60, 201, 10)]
+        bucket_boundaries = list(range(60, 221, 10))
         bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) + 1)
         labeled_ds = labeled_ds.apply(
             tf.data.experimental.bucket_by_sequence_length(
@@ -158,22 +160,8 @@ def load(split="train",
                     False)
             )
         )
-        # This will pad the images to the largest size in the batch, since
-        # I set target size to None.
-        # Labels will not be padded, but it is required to provide shape
-        # and value for them too.
-        # labeled_ds = labeled_ds.padded_batch(batch_size,
-        #                                      padded_shapes=(
-        #                                          # Target shape for images.
-        #                                          [None, None, 3],
-        #                                          # Target shape for labels.
-        #                                          [len(class_names)]
-        #                                      ),
-        #                                      padding_values=(
-        #                                          # Padding value for images.
-        #                                          -1.,
-        #                                          # Padding value for labels.
-        #                                          False))
+
+        # Preload the next batch while the current batch is on GPU.
         labeled_ds = labeled_ds.prefetch(buffer_size=AUTOTUNE)
 
         return labeled_ds, np.array(class_names)
