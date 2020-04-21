@@ -1,4 +1,4 @@
-from absl import flags, app
+from absl import flags
 from absl.flags import FLAGS
 
 import tensorflow as tf

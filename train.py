@@ -7,18 +7,18 @@ import matplotlib.pyplot as plt
 import data.dataset
 
 
-flags.DEFINE_boolean("fcn",
-                     False,
-                     "Fully Convolutional Network or standard network")
+flags.DEFINE_integer("size",
+                     None,
+                     "Input image size. Can be None (any size).")
 flags.DEFINE_integer('batch_size',
                      8,
-                     'Batch size')
+                     'Batch size.')
 flags.DEFINE_boolean("cache_train",
                      True,
-                     "Cache the training set in RAM or not")
+                     "Cache the training set in RAM or not.")
 flags.DEFINE_boolean("cache_val",
                      True,
-                     "Cache the validation set in RAM or not")
+                     "Cache the validation set in RAM or not.")
 
 
 def show_batch(image_batch, label_batch, class_names):
@@ -35,7 +35,7 @@ def show_batch(image_batch, label_batch, class_names):
 
 def main(_argv):
     training_set, class_names = data.dataset.load(split="train",
-                                                  size=None,
+                                                  size=FLAGS.size,
                                                   batch_size=8,
                                                   cache=FLAGS.cache_train)
 
