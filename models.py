@@ -1,4 +1,14 @@
+from absl import flags
+from absl.flags import FLAGS
+
 import tensorflow.keras as keras
+
+
+flags.DEFINE_string("weights",
+                    "imagenet",
+                    "one of `None` (random initialization), \
+                    'imagenet' (pre-training on ImageNet), \
+                    or the path to the weights file to be loaded.")
 
 
 # Get an Xception model. It can be of a fixed size or accept any size.
@@ -7,7 +17,7 @@ import tensorflow.keras as keras
 def get_model(num_classes, size=None):
     base_model = keras.applications.xception.Xception(
         # keras.applications.nasnet.NASNetLarge(
-        weights="imagenet",
+        weights=FLAGS.weights,
         include_top=False,
         input_shape=(size, size, 3),
         pooling="avg"
