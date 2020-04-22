@@ -4,6 +4,7 @@ from absl.flags import FLAGS
 import tensorflow as tf
 import tensorflow.keras as keras
 import numpy as np
+import matplotlib.pyplot as plt
 
 import os
 from functools import partial
@@ -139,8 +140,9 @@ def load(split="train",
         # Shuffle the dataset.
         labeled_ds = labeled_ds.shuffle(buffer_size=1000)
 
-        # Repeat the dataset undefinitely.
-        labeled_ds = labeled_ds.repeat()
+        # Repeat the dataset undefinitely. This is not needed because Keras
+        # handles repetition automatically.
+        # labeled_ds = labeled_ds.repeat()
 
         # Create batches using buckets: images with similar height will
         # be in the same batch. Minimum extra padding is added if needed.
@@ -168,3 +170,15 @@ def load(split="train",
 
     else:
         print("Cannot load {} split, directory not found!".format(split))
+
+
+def show_batch(image_batch, label_batch, class_names):
+    plt.figure(figsize=(10, 10))
+    batch_size = image_batch.shape[0]
+    for n in range(batch_size):
+        _ = plt.subplot(1, batch_size, n + 1)
+        image = image_batch[n]
+        plt.imshow(image / 2 + 0.5)
+        plt.title(class_names[label_batch[n]][0]+"\n"+str(image.shape))
+        plt.axis('off')
+    plt.show()

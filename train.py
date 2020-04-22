@@ -21,18 +21,6 @@ flags.DEFINE_boolean("cache_val",
                      "Cache the validation set in RAM or not.")
 
 
-def show_batch(image_batch, label_batch, class_names):
-    plt.figure(figsize=(10, 10))
-    batch_size = image_batch.shape[0]
-    for n in range(batch_size):
-        _ = plt.subplot(1, batch_size, n + 1)
-        image = image_batch[n]
-        plt.imshow(image / 2 + 0.5)
-        plt.title(class_names[label_batch[n]][0]+"\n"+str(image.shape))
-        plt.axis('off')
-    plt.show()
-
-
 def main(_argv):
     training_set, class_names = data.dataset.load(split="train",
                                                   size=FLAGS.size,
@@ -40,7 +28,9 @@ def main(_argv):
                                                   cache=FLAGS.cache_train)
 
     for image_batch, label_batch in training_set:
-        show_batch(image_batch.numpy(), label_batch.numpy(), class_names)
+        data.dataset.show_batch(image_batch.numpy(),
+                                label_batch.numpy(),
+                                class_names)
         if input() == "q":
             break
 
