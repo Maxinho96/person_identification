@@ -43,11 +43,11 @@ def main(_argv):
     # Load datasets
     train_set, class_names = data.dataset.load(split="train",
                                                size=FLAGS.size,
-                                               batch_size=8,
+                                               batch_size=FLAGS.batch_size,
                                                cache=FLAGS.cache_train)
     val_set, _ = data.dataset.load(split="val",
                                    size=FLAGS.size,
-                                   batch_size=8,
+                                   batch_size=FLAGS.batch_size,
                                    cache=FLAGS.cache_val)
 
     # Load model
@@ -81,13 +81,6 @@ def main(_argv):
     early_stopping_cb = keras.callbacks.EarlyStopping(patience=10)
     callbacks.append(early_stopping_cb)
     # TensorBoard callback
-    
-    # for image_batch, label_batch in train_set:
-    #     data.dataset.show_batch(image_batch.numpy(),
-    #                             label_batch.numpy(),
-    #                             class_names)
-    #     if input() == "q":
-    #         break
 
 
 if __name__ == "__main__":

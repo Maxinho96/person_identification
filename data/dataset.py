@@ -1,4 +1,4 @@
-from absl import flags
+from absl import app, flags
 from absl.flags import FLAGS
 
 import tensorflow as tf
@@ -13,15 +13,6 @@ from functools import partial
 flags.DEFINE_string("dataset",
                     "data/casia_gait/DatasetB_split",
                     "Path to dataset")
-flags.DEFINE_string("first_class",
-                    "001",
-                    "The first class to consider")
-flags.DEFINE_string("last_class",
-                    "025",
-                    "The last class to consider")
-flags.DEFINE_list('skip_classes',
-                  "002,005,006,007,010,012,016,020,021,022,024",
-                  "These classes will not be considered")
 # Data augmentation flags
 flags.DEFINE_boolean("random_flip",
                      True,
@@ -104,12 +95,10 @@ def load(split="train",
 
         dataset_dir = os.path.join(FLAGS.dataset, split)
 
-        class_names = sorted(os.listdir(dataset_dir))
+        class_names_path = os.path.join(FLAGS.dataset, "class_names.txt")
 
-        start = class_names.index(FLAGS.first_class)
-        end = class_names.index(FLAGS.last_class) + 1
-        class_names = class_names[start:end]
-        class_names = [c for c in class_names if c not in FLAGS.skip_classes]
+        with open(class_names_path, "r") as class_names_file:
+            class_names = class_names_file.read().splitlines()
 
         # Load files.
         pattern = [os.path.join(dataset_dir, c, "*") for c in class_names]
@@ -182,3 +171,21 @@ def show_batch(image_batch, label_batch, class_names):
         plt.title(class_names[label_batch[n]][0]+"\n"+str(image.shape))
         plt.axis('off')
     plt.show()
+
+
+def main(_argv):
+    train_set, class_names = load(split="train",
+                                  size=None,
+                                  batch_size=8,
+                                  cache=True)
+
+    for image_batch, label_batch in train_set:
+        show_batch(image_batch.numpy(),
+                   label_batch.numpy(),
+                   class_names)
+        if input() == "q":
+            break
+
+
+if __name__ == "__main__":
+    app.run(main)
