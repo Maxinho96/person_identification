@@ -2,7 +2,7 @@ from absl import flags, app
 from absl.flags import FLAGS
 
 import tensorflow.keras as keras
-import matplotlib.pyplot as plt
+import tensorflow as tf
 
 import os
 
@@ -16,6 +16,9 @@ flags.DEFINE_integer("exp",
 flags.DEFINE_string("checkpoints_dir",
                     "checkpoints",
                     "The base dir where to save checkpoints.")
+flags.DEFINE_string("logs_dir",
+                    "logs",
+                    "The base dir where to save TensorBoard logs.")
 flags.DEFINE_integer("size",
                      None,
                      "Input image size. If None, the model accepts any size.")
@@ -41,14 +44,16 @@ flags.DEFINE_boolean("cache_val",
 
 def main(_argv):
     # Load datasets
-    train_set, class_names = data.dataset.load(split="train",
+    train_set, class_names, train_length = data.dataset.load(
+        split="train",
+        size=FLAGS.size,
+        batch_size=FLAGS.batch_size,
+        cache=FLAGS.cache_train
+    )
+    val_set, _, val_length = data.dataset.load(split="val",
                                                size=FLAGS.size,
                                                batch_size=FLAGS.batch_size,
-                                               cache=FLAGS.cache_train)
-    val_set, _ = data.dataset.load(split="val",
-                                   size=FLAGS.size,
-                                   batch_size=FLAGS.batch_size,
-                                   cache=FLAGS.cache_val)
+                                               cache=FLAGS.cache_val)
 
     # Load model
     model = models.get_model(num_classes=len(class_names),
@@ -68,19 +73,32 @@ def main(_argv):
 
     # Define callbacks
     callbacks = []
+
     # Checkpoint callback
     filepath = os.path.join(FLAGS.checkpoints_dir,
-                            "exp"+str(FLAGS.exp),
+                            "exp" + str(FLAGS.exp),
                             "best_weights.ckpt")
     checkpoint_cb = keras.callbacks.ModelCheckpoint(
         filepath=filepath,
         save_best_only=True,
         save_weights_only=True)
     callbacks.append(checkpoint_cb)
+
     # Early stopping callback
     early_stopping_cb = keras.callbacks.EarlyStopping(patience=10)
     callbacks.append(early_stopping_cb)
+
     # TensorBoard callback
+    log_dir = os.path.join(FLAGS.logs_dir, "exp" + str(FLAGS.exp))
+    tensorboard_cb = keras.callbacks.TensorBoard(log_dir)
+    callbacks.append(tensorboard_cb)
+
+    # Fit the model
+    model.fit(train_set,
+              epochs=FLAGS.epochs,
+              callbacks=callbacks,
+              validation_data=val_set,
+              steps_per_epoch=train_length//FLAGS.batch_size)
 
 
 if __name__ == "__main__":

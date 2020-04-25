@@ -104,6 +104,8 @@ def load(split="train",
         pattern = [os.path.join(dataset_dir, c, "*") for c in class_names]
         filenames_ds = tf.data.Dataset.list_files(pattern)
 
+        dataset_length = tf.data.experimental.cardinality(filenames_ds).numpy()
+
         # Preprocess images after decoding only if split is not train.
         # Preprocessing is done after augmentation if split is train.
         do_preprocessing = split != "train"
@@ -126,36 +128,41 @@ def load(split="train",
             labeled_ds = labeled_ds.map(augment_fn,
                                         num_parallel_calls=AUTOTUNE)
 
-        # Shuffle the dataset.
-        labeled_ds = labeled_ds.shuffle(buffer_size=1000)
+        # Shuffle the training set.
+        if split == "train":
+            labeled_ds = labeled_ds.shuffle(buffer_size=1000)
 
         # Repeat the dataset undefinitely. This is not needed because Keras
         # handles repetition automatically.
         # labeled_ds = labeled_ds.repeat()
 
-        # Create batches using buckets: images with similar height will
-        # be in the same batch. Minimum extra padding is added if needed.
-        # Buckets are intervals of 10 pixels, from 60 to 200.
-        bucket_boundaries = list(range(60, 221, 10))
-        bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) + 1)
-        labeled_ds = labeled_ds.apply(
-            tf.data.experimental.bucket_by_sequence_length(
-                # Use the height of the images to choose the bucket.
-                element_length_func=lambda image, label: tf.shape(image)[0],
-                bucket_boundaries=bucket_boundaries,
-                bucket_batch_sizes=bucket_batch_sizes,
-                padding_values=(
-                    # Padding value for images.
-                    -1.,
-                    # Padding value for labels.
-                    False)
+        if size is None:
+            # Create batches using buckets: images with similar height will
+            # be in the same batch. Minimum extra padding is added if needed.
+            # Buckets are intervals of 10 pixels, from 60 to 200.
+            bucket_boundaries = list(range(60, 221, 10))
+            bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) + 1)
+            labeled_ds = labeled_ds.apply(
+                tf.data.experimental.bucket_by_sequence_length(
+                    # Use the height of the images to choose the bucket.
+                    element_length_func=lambda image, label: \
+                    tf.shape(image)[0],
+                    bucket_boundaries=bucket_boundaries,
+                    bucket_batch_sizes=bucket_batch_sizes,
+                    padding_values=(
+                        # Padding value for images.
+                        -1.,
+                        # Padding value for labels.
+                        False)
+                )
             )
-        )
+        else:
+            labeled_ds = labeled_ds.batch(batch_size)
 
         # Preload the next batch while the current batch is on GPU.
         labeled_ds = labeled_ds.prefetch(buffer_size=AUTOTUNE)
 
-        return labeled_ds, np.array(class_names)
+        return labeled_ds, np.array(class_names), dataset_length
 
     else:
         print("Cannot load {} split, directory not found!".format(split))
