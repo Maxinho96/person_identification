@@ -80,12 +80,14 @@ def main(_argv):
                             "best_weights.ckpt")
     checkpoint_cb = keras.callbacks.ModelCheckpoint(
         filepath=filepath,
+        monitor="val_accuracy",
         save_best_only=True,
         save_weights_only=True)
     callbacks.append(checkpoint_cb)
 
     # Early stopping callback
-    early_stopping_cb = keras.callbacks.EarlyStopping(patience=10)
+    early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_accuracy",
+                                                      patience=1)
     callbacks.append(early_stopping_cb)
 
     # TensorBoard callback
@@ -98,7 +100,8 @@ def main(_argv):
               epochs=FLAGS.epochs,
               callbacks=callbacks,
               validation_data=val_set,
-              steps_per_epoch=train_length//FLAGS.batch_size)
+              steps_per_epoch=train_length//FLAGS.batch_size,
+              validation_steps=50)
 
 
 if __name__ == "__main__":

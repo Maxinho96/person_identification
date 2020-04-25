@@ -128,13 +128,11 @@ def load(split="train",
             labeled_ds = labeled_ds.map(augment_fn,
                                         num_parallel_calls=AUTOTUNE)
 
-        # Shuffle the training set.
         if split == "train":
+            # Shuffle the training set.
             labeled_ds = labeled_ds.shuffle(buffer_size=1000)
-
-        # Repeat the dataset undefinitely. This is not needed because Keras
-        # handles repetition automatically.
-        # labeled_ds = labeled_ds.repeat()
+            # Repeat the training set undefinitely.
+            labeled_ds = labeled_ds.repeat()
 
         if size is None:
             # Create batches using buckets: images with similar height will
