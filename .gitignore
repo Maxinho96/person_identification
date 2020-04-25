@@ -1,6 +1,10 @@
 # Datasets
 data/casia_gait
 
+# Checkpoints and logs
+checkpoints/
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
