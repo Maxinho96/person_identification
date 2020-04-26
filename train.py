@@ -67,9 +67,13 @@ def main(_argv):
         print(layer.name)
 
     # Compile the model
+    metrics = ["accuracy",
+               keras.losses.CategoricalCrossentropy(
+                   name="categorical_crossentropy")
+               ]
     model.compile(loss="categorical_crossentropy",
                   optimizer=FLAGS.optimizer,
-                  metrics=["accuracy"])
+                  metrics=metrics)
 
     # Define callbacks
     callbacks = []
@@ -87,7 +91,7 @@ def main(_argv):
 
     # Early stopping callback
     early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_accuracy",
-                                                      patience=1)
+                                                      patience=10)
     callbacks.append(early_stopping_cb)
 
     # TensorBoard callback
@@ -100,8 +104,8 @@ def main(_argv):
               epochs=FLAGS.epochs,
               callbacks=callbacks,
               validation_data=val_set,
-              steps_per_epoch=train_length//FLAGS.batch_size,
-              validation_steps=50)
+              steps_per_epoch=train_length // 20 // FLAGS.batch_size,
+              validation_steps=val_length // 20 // FLAGS.batch_size)
 
 
 if __name__ == "__main__":

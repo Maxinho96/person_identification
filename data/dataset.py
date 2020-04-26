@@ -31,7 +31,7 @@ flags.DEFINE_boolean("random_brightness",
                      "Use or not random brightness data augmentation")
 
 
-def preprocess(image, size):
+def preprocess(image, label, size):
     # Resize the image to the desired size.
     if size is not None:
         image = tf.image.resize_with_pad(image, size, size)
@@ -42,10 +42,10 @@ def preprocess(image, size):
     # an RGB float image in range [-1., 1.]
     image = keras.applications.xception.preprocess_input(image)
 
-    return image
+    return image, label
 
 
-def augment_and_preprocess(image, label, size):
+def augment(image, label):
     # Randomly flip the image horizontally.
     if FLAGS.random_flip:
         image = tf.image.random_flip_left_right(image)
@@ -62,12 +62,10 @@ def augment_and_preprocess(image, label, size):
     if FLAGS.random_brightness:
         image = tf.image.random_brightness(image, 0.075)
 
-    image = preprocess(image, size)
-
     return image, label
 
 
-def decode_image(file_path, class_names, size, do_preprocessing):
+def decode_image(file_path, class_names):
     # Convert the path to a list of path components
     parts = tf.strings.split(file_path, os.path.sep)
     # The second to last is the class-directory
@@ -76,10 +74,6 @@ def decode_image(file_path, class_names, size, do_preprocessing):
     image = tf.io.read_file(file_path)
     # Convert the compressed string to a 3D uint8 tensor
     image = tf.image.decode_jpeg(image, channels=3)
-    # Preprocessing can be done here or not. If you do data augmentation,
-    # preprocessing is done after it.
-    if do_preprocessing:
-        image = preprocess(image, size)
 
     return image, label
 
@@ -106,14 +100,9 @@ def load(split="train",
 
         dataset_length = tf.data.experimental.cardinality(filenames_ds).numpy()
 
-        # Preprocess images after decoding only if split is not train.
-        # Preprocessing is done after augmentation if split is train.
-        do_preprocessing = split != "train"
-        # Decode and optionally preprocess images and add labels.
+        # Decode images and add labels.
         decode_fn = partial(decode_image,
-                            class_names=class_names,
-                            size=size,
-                            do_preprocessing=do_preprocessing)
+                            class_names=class_names)
         labeled_ds = filenames_ds.map(decode_fn,
                                       num_parallel_calls=AUTOTUNE)
 
@@ -121,19 +110,16 @@ def load(split="train",
         if cache:
             labeled_ds = labeled_ds.cache()
 
-        # Do data augmentation and preprocessing now if it wasn't done before.
-        if not do_preprocessing:
-            augment_fn = partial(augment_and_preprocess,
-                                 size=size)
-            labeled_ds = labeled_ds.map(augment_fn,
-                                        num_parallel_calls=AUTOTUNE)
-
         if split == "train":
+            # Do data augmentation on the training set.
+            labeled_ds = labeled_ds.map(augment,
+                                        num_parallel_calls=AUTOTUNE)
             # Shuffle the training set.
             labeled_ds = labeled_ds.shuffle(buffer_size=1000)
             # Repeat the training set undefinitely.
             labeled_ds = labeled_ds.repeat()
 
+        preprocess_fn = partial(preprocess, size=size)
         if size is None:
             # Create batches using buckets: images with similar height will
             # be in the same batch. Minimum extra padding is added if needed.
@@ -149,14 +135,20 @@ def load(split="train",
                     bucket_batch_sizes=bucket_batch_sizes,
                     padding_values=(
                         # Padding value for images.
-                        -1.,
+                        tf.constant(0, dtype="uint8"),
                         # Padding value for labels.
                         False)
                 )
             )
+            labeled_ds = labeled_ds.map(preprocess_fn,
+                                        num_parallel_calls=AUTOTUNE)
         else:
+            labeled_ds = labeled_ds.map(preprocess_fn,
+                                        num_parallel_calls=AUTOTUNE)
             labeled_ds = labeled_ds.batch(batch_size)
 
+        labeled_ds = labeled_ds.apply(
+            tf.data.experimental.copy_to_device("/gpu:0"))
         # Preload the next batch while the current batch is on GPU.
         labeled_ds = labeled_ds.prefetch(buffer_size=AUTOTUNE)
 
@@ -179,10 +171,10 @@ def show_batch(image_batch, label_batch, class_names):
 
 
 def main(_argv):
-    train_set, class_names = load(split="train",
-                                  size=None,
-                                  batch_size=8,
-                                  cache=True)
+    train_set, class_names, length = load(split="train",
+                                          size=299,
+                                          batch_size=8,
+                                          cache=True)
 
     for image_batch, label_batch in train_set:
         show_batch(image_batch.numpy(),
