@@ -124,7 +124,7 @@ def load(split="train",
             # Create batches using buckets: images with similar height will
             # be in the same batch. Minimum extra padding is added if needed.
             # Buckets are intervals of 10 pixels, from 60 to 200.
-            bucket_boundaries = list(range(60, 221, 10))
+            bucket_boundaries = list(range(70, 221, 10))
             bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) + 1)
             labeled_ds = labeled_ds.apply(
                 tf.data.experimental.bucket_by_sequence_length(
@@ -146,6 +146,11 @@ def load(split="train",
             labeled_ds = labeled_ds.map(preprocess_fn,
                                         num_parallel_calls=AUTOTUNE)
             labeled_ds = labeled_ds.batch(batch_size)
+
+        # Remove images with size < 71 (Not supported by Xception).
+        labeled_ds = labeled_ds.filter(lambda batch, labels:
+                                       tf.shape(batch)[1] > 70 and
+                                       tf.shape(batch)[2] > 70)
 
         labeled_ds = labeled_ds.apply(
             tf.data.experimental.copy_to_device("/gpu:0"))
