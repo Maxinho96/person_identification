@@ -11,7 +11,7 @@ from functools import partial
 
 
 flags.DEFINE_string("dataset",
-                    "data/casia_gait/DatasetB_split",
+                    "data/casia_gait/DatasetB_split_reduced",
                     "Path to dataset")
 # Data augmentation flags
 flags.DEFINE_boolean("random_flip",
@@ -114,9 +114,10 @@ def load(split="train",
             # Do data augmentation on the training set.
             labeled_ds = labeled_ds.map(augment,
                                         num_parallel_calls=AUTOTUNE)
-            # Shuffle the training set.
+        if split != "test":
+            # Shuffle the training and validation set.
             labeled_ds = labeled_ds.shuffle(buffer_size=1000)
-            # Repeat the training set undefinitely.
+            # Repeat the training and validation set undefinitely.
             labeled_ds = labeled_ds.repeat()
 
         preprocess_fn = partial(preprocess, size=size)
@@ -177,7 +178,7 @@ def show_batch(image_batch, label_batch, class_names):
 
 def main(_argv):
     train_set, class_names, length = load(split="train",
-                                          size=299,
+                                          size=None,
                                           batch_size=8,
                                           cache=True)
 
