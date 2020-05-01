@@ -1,0 +1,11 @@
+name: personclassifier
+
+channels:
+    - defaults
+
+dependencies:
+  - python==3.7
+  - tensorflow==2.1.0
+  - matplotlib
+  - pip:
+      - opencv-python
