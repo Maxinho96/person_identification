@@ -61,10 +61,12 @@ def main(_argv):
 
     # Freeze bottom layers
     for layer in model.layers[:-FLAGS.trainable_layers]:
-        layer.trainable = False
+        if not "BatchNormalization" in layer.__class__.__name__:
+            layer.trainable = False
     print("Trainable layers:")
-    for layer in model.layers[-FLAGS.trainable_layers:]:
-        print(layer.name)
+    for layer in model.layers:
+        if layer.trainable:
+            print(layer.name)
 
     # Compile the model
     metrics = ["accuracy",
