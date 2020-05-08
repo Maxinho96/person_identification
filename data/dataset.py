@@ -13,6 +13,9 @@ from functools import partial
 flags.DEFINE_string("dataset",
                     "data/casia_gait/DatasetB_split_reduced",
                     "Path to dataset")
+flags.DEFINE_string("class_names_file",
+                    "class_names.txt",
+                    "Class names txt file (must be in dataset directory)")
 # Data augmentation flags
 flags.DEFINE_boolean("random_flip",
                      True,
@@ -89,7 +92,7 @@ def load(split="train",
 
         dataset_dir = os.path.join(FLAGS.dataset, split)
 
-        class_names_path = os.path.join(FLAGS.dataset, "class_names.txt")
+        class_names_path = os.path.join(FLAGS.dataset, FLAGS.class_names_file)
 
         with open(class_names_path, "r") as class_names_file:
             class_names = class_names_file.read().splitlines()
