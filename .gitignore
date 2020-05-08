@@ -3,7 +3,7 @@ data/casia_gait
 
 # Checkpoints and logs
 checkpoints/
-logs/
+# logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
