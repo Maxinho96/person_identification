@@ -34,6 +34,12 @@ flags.DEFINE_integer('batch_size',
 flags.DEFINE_integer("epochs",
                      1,
                      "Number of epochs.")
+flags.DEFINE_integer("patience",
+                     10,
+                     "Early stopping patience.")
+flags.DEFINE_integer("initial_epoch",
+                     0,
+                     "The epoch number to start from.")
 flags.DEFINE_boolean("cache_train",
                      True,
                      "Cache the training set in RAM or not.")
@@ -93,7 +99,7 @@ def main(_argv):
 
     # Early stopping callback
     early_stopping_cb = keras.callbacks.EarlyStopping(monitor="val_accuracy",
-                                                      patience=10)
+                                                      patience=FLAGS.patience)
     callbacks.append(early_stopping_cb)
 
     # TensorBoard callback
@@ -106,6 +112,7 @@ def main(_argv):
               epochs=FLAGS.epochs,
               callbacks=callbacks,
               validation_data=val_set,
+              initial_epoch=FLAGS.initial_epoch,
               steps_per_epoch=train_length // 20 // FLAGS.batch_size,
               validation_steps=val_length // 20 // FLAGS.batch_size)
 
