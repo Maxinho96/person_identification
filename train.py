@@ -2,7 +2,6 @@ from absl import flags, app
 from absl.flags import FLAGS
 
 import tensorflow.keras as keras
-import tensorflow as tf
 
 import os
 
