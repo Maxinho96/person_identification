@@ -29,16 +29,8 @@ def main(_argv):
                                                batch_size=FLAGS.batch_size,
                                                cache=False)
 
-    test_set = test_set.take(15)
+    # test_set = test_set.take(test_length // 50 // FLAGS.batch_size)
     
-    numpy_images = np.empty((0, FLAGS.size, FLAGS.size, 3))
-    numpy_labels = np.empty((0, len(class_names)))
-    for images, labels in test_set:
-        numpy_images = np.vstack((numpy_images, images))
-        numpy_labels = np.vstack((numpy_labels, labels))
-    
-    # print(numpy_images.shape, numpy_labels.shape)
-
     # Load model
     model = models.get_model(num_classes=len(class_names),
                              size=FLAGS.size)
@@ -49,16 +41,22 @@ def main(_argv):
                   optimizer=FLAGS.optimizer,
                   metrics=metrics)
     
-    predictions = model.predict(numpy_images,
-                                batch_size=FLAGS.batch_size)
+    y_true = np.empty((0,))
+    y_pred = np.empty((0,))
+    for images, labels in test_set:
+        predictions = model.predict(images)
+        curr_y_true = np.argmax(labels, axis=1)
+        y_true = np.concatenate((y_true, curr_y_true))
+        curr_y_pred = np.argmax(predictions, axis=1)
+        y_pred = np.concatenate((y_pred, curr_y_pred))
     
-    y_true = np.argmax(numpy_labels, axis=1)
-    y_pred = np.argmax(predictions, axis=1)
+    # print(numpy_images.shape, numpy_labels.shape)
+    
     print(classification_report(y_true, y_pred, target_names=class_names))
     conf_matrix = pd.DataFrame(confusion_matrix(y_true, y_pred),
                                class_names,
                                class_names)
-    sns.heatmap(conf_matrix, xticklabels=True, yticklabels=True)
+    sns.heatmap(conf_matrix, xticklabels=True, yticklabels=True, cmap="YlGnBu")
     plt.show()
 
 if __name__ == "__main__":
