@@ -39,7 +39,8 @@ def get_file_dest(file_name):
         # "bg" (with a bag) or "bkgrd" (background).
         subject_id, walk_status, seq_num, *_ = file_name.split("-")
         if walk_status == "nm":
-            dest = "train"
+            if seq_num == "01":
+                dest = "train"
         elif walk_status == "cl" or walk_status == "bg":
             if seq_num == "01":
                 dest = "val"
@@ -101,31 +102,7 @@ def apply_mask(image, image_name, silhouettes_dir):
         # Crop the image using the bbox coordinates
         image = image[y:y+h+1, x:x+w+1]
 
-        # This code was to account for size mismatches between image and mask,
-        # but if I crop the image and the mask to the bbox size this is not
-        # needed anymore.
-        # if image.shape[:2] != mask.shape[:2]:
-        #     print(image_name, "size mismatch", mask_name)
-
-        #     ver_dif = image.shape[0] - mask.shape[0]
-        #     hor_dif = image.shape[1] - mask.shape[1]
-
-        #     mask = cv2.copyMakeBorder(
-        #         mask,
-        #         0,
-        #         ver_dif,
-        #         0,
-        #         hor_dif,
-        #         cv2.BORDER_CONSTANT,
-        #         value=[0, 0, 0])
-
         masked_image = cv2.bitwise_and(image, image, mask=mask)
-
-        # cv2.imshow("i", masked_image)
-        # while True:
-        #     k=cv2.waitKey(1)
-        #     if k == ord("q"):
-        #         break
 
     # Return None if image doesn't have its mask
     return masked_image
@@ -152,8 +129,6 @@ def main(_argv):
 
             print("Splitting", file_name)
             split_video(video_path, dest_dir, silhouettes_dir)
-
-            # apply_masks(dest_dir, silhouettes_dir)
 
 
 if __name__ == "__main__":

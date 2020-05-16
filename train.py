@@ -113,7 +113,7 @@ def main(_argv):
               validation_data=val_set,
               initial_epoch=FLAGS.initial_epoch,
               steps_per_epoch=train_length // 20 // FLAGS.batch_size,
-              validation_steps=val_length // 20 // FLAGS.batch_size)
+              validation_steps=val_length // 50 // FLAGS.batch_size)
 
 
 if __name__ == "__main__":
