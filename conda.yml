@@ -1,11 +1,27 @@
-name: personclassifier
+name: segment_identify
 
 channels:
-    - defaults
+  - defaults
+  - conda-forge
+  - pytorch
 
 dependencies:
-  - python==3.7
+  - python==3.7.6
+  - pip
+  - cython 
   - tensorflow==2.1.0
+  - pytorch::torchvision==0.5.0
+  - pytorch::pytorch==1.4.0
+  - cudatoolkit==10.1.243
+  - cudnn==7.6.5
+  # - pytorch::cuda100
   - matplotlib
+  - git # to download COCO dataset
+  - curl # to download COCO dataset
+  - unzip # to download COCO dataset
+  - conda-forge::bash # to download COCO dataset
   - pip:
       - opencv-python
+      - pillow <7.0 # bug PILLOW_VERSION in torchvision, must be < 7.0 until torchvision is
+      - pycocotools 
+      - PyQt5 # needed on KDE/Qt envs for matplotlib
