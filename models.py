@@ -1,25 +1,17 @@
-from absl import flags, app
-from absl.flags import FLAGS
+from absl import app
 
 import tensorflow.keras as keras
-
-
-flags.DEFINE_string("weights",
-                    "imagenet",
-                    "one of `None` (random initialization), \
-                    'imagenet' (pre-training on ImageNet), \
-                    or the path to the weights file to be loaded.")
 
 
 # Get an Xception model. It can be of a fixed size or accept any size.
 # The model is the same, but fixed size is more efficient if you don't
 # plan to use the model on different sizes.
-def get_model(num_classes, size=None):
-    if FLAGS.weights != "imagenet":
+def get_model(num_classes, size=None, weights="imagenet"):
+    if weights != "imagenet":
         initial_weights = None
-        final_weights = FLAGS.weights
+        final_weights = weights
     else:
-        initial_weights = FLAGS.weights
+        initial_weights = weights
         final_weights = None
 
     base_model = keras.applications.xception.Xception(

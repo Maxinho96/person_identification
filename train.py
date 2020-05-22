@@ -45,6 +45,11 @@ flags.DEFINE_boolean("cache_train",
 flags.DEFINE_boolean("cache_val",
                      True,
                      "Cache the validation set in RAM or not.")
+flags.DEFINE_string("weights",
+                    "imagenet",
+                    "one of `None` (random initialization), \
+                    'imagenet' (pre-training on ImageNet), \
+                    or the path to the weights file to be loaded.")
 
 
 def main(_argv):
@@ -62,7 +67,8 @@ def main(_argv):
 
     # Load model
     model = models.get_model(num_classes=len(class_names),
-                             size=FLAGS.size)
+                             size=FLAGS.size,
+                             weights=FLAGS.weight_weights)
 
     # Freeze bottom layers
     for layer in model.layers[:-FLAGS.trainable_layers]:

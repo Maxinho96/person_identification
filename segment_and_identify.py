@@ -1115,7 +1115,8 @@ if __name__ == '__main__':
             net = net.cuda()
         
         tf_model = models.get_model(num_classes=62,
-                                    size=299)
+                                    size=299,
+                                    weights="imagenet")
         print(tf_model.summary())
 
         evaluate(net, dataset)
