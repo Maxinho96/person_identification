@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 import models
+import data.dataset
 
 
 def str2bool(v):
@@ -118,6 +119,8 @@ def parse_args(argv=None):
                         help='When saving a video, emulate the framerate that you\'d get running in real-time mode.')
     parser.add_argument('--only_person', default=False, dest='only_person', action='store_true',
                         help='Only evaluate on the person class, ignore the other classes.')
+    parser.add_argument('--identify_people', default=False, dest='identify_people', action='store_true',
+                        help='Whether to identify the detected people or not.')
 
     parser.set_defaults(no_bar=False, display=False, resume=False, output_coco_json=False, output_web_json=False, shuffle=False,
                         benchmark=False, no_sort=False, no_hash=False, mask_proto_debug=False, crop=True, detect=False, display_fps=False,
@@ -191,7 +194,7 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
     # First, draw the masks on the GPU where we can do it really fast
     # Beware: very fast but possibly unintelligible mask-drawing code ahead
     # I wish I had access to OpenGL or Vulkan but alas, I guess Pytorch tensor operations will have to suffice
-    if args.display_masks and cfg.eval_mask_branch and num_dets_to_consider > 0:
+    if (args.display_masks or args.identify_people) and cfg.eval_mask_branch and num_dets_to_consider > 0:
         # After this, mask is of size [num_dets, h, w, 1]
         masks = masks[:num_dets_to_consider, :, :, None]
         
@@ -211,13 +214,37 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
             masks_color_cumul = masks_color[1:] * inv_alph_cumul
             masks_color_summand += masks_color_cumul.sum(dim=0)
         
-        for i in range(num_dets_to_consider):
-            x1, y1, x2, y2 = boxes[i, :]
-            silh_image = (img_gpu * masks[i] * 255)[y1:(y2+1), x1:(x2+1)]
-            cv2.imshow("mask", (silh_image).byte().cpu().numpy())
-            while cv2.waitKey(1) != ord("q"):
-                pass
-
+        
+        if args.identify_people:
+            # Key = original detection index. Value = person index.
+            det_to_person_index = {}
+            prep_silh_images = np.empty((0, 299, 299, 3))
+            for i in range(num_dets_to_consider):
+                _class = cfg.dataset.class_names[classes[i]]
+                
+                if _class == "person":
+                    x1, y1, x2, y2 = boxes[i, :]
+        
+                    silh_image = (img_gpu * masks[i] * 255)[y1:(y2+1), x1:(x2+1), [2, 1, 0]]
+                    numpy_silh_image = silh_image.byte().cpu().numpy()
+        
+                    prep_silh_image, _ = data.dataset.preprocess(numpy_silh_image, None, 299)
+                    prep_silh_images = np.vstack((prep_silh_images, np.expand_dims(prep_silh_image, axis=0)))
+                    
+                    det_to_person_index[i] = prep_silh_images.shape[0] - 1
+        
+                    # cv2.imshow("mask", numpy_silh_image)
+                    # while cv2.waitKey(1) != ord("q"):
+                    #     pass
+        
+            # data.dataset.show_batch(prep_silh_images, [0, 1, 2], ["prova1", "prova2", "prova3"])
+            # pickle.dump(prep_silh_images, open("prep_silh_images.pkl", "wb"))
+        
+            raw_person_preds = person_classifier.predict(prep_silh_images)
+            person_preds = np.argmax(raw_person_preds, axis=1)
+            person_scores = np.max(raw_person_preds, axis=1)
+            print(person_preds, person_scores)
+        
         img_gpu = img_gpu * inv_alph_masks.prod(dim=0) + masks_color_summand
     
     if args.display_fps:
@@ -246,6 +273,10 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
         return img_numpy
 
     if args.display_text or args.display_bboxes:
+        if args.identify_people:
+            with open("data/casia_gait/DatasetB_split_reduced/class_names_62.txt", "r") as person_classes_file:
+                person_classes = person_classes_file.read().splitlines()
+            
         for j in reversed(range(num_dets_to_consider)):
             x1, y1, x2, y2 = boxes[j, :]
             color = get_color(j)
@@ -256,6 +287,15 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
 
             if args.display_text:
                 _class = cfg.dataset.class_names[classes[j]]
+                
+                if args.identify_people and (j in det_to_person_index):
+                    person_index = det_to_person_index[j]
+                    person_pred = person_preds[person_index]
+                    
+                    _class = person_classes[person_pred]
+                    
+                    score = person_scores[person_index]
+                    
                 text_str = '%s: %.2f' % (_class, score) if args.display_scores else _class
 
                 font_face = cv2.FONT_HERSHEY_DUPLEX
@@ -1120,6 +1160,12 @@ if __name__ == '__main__':
 
         if args.cuda:
             net = net.cuda()
+        
+        if args.identify_people:
+            global person_classifier
+            person_classifier = models.get_model(num_classes=62,
+                                                 size=299,
+                                                 weights="checkpoints/exp16/best_weights.ckpt")
 
         evaluate(net, dataset)
 
