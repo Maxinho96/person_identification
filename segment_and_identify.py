@@ -210,6 +210,13 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
             inv_alph_cumul = inv_alph_masks[:(num_dets_to_consider-1)].cumprod(dim=0)
             masks_color_cumul = masks_color[1:] * inv_alph_cumul
             masks_color_summand += masks_color_cumul.sum(dim=0)
+        
+        for i in range(num_dets_to_consider):
+            x1, y1, x2, y2 = boxes[i, :]
+            silh_image = (img_gpu * masks[i] * 255)[y1:(y2+1), x1:(x2+1)]
+            cv2.imshow("mask", (silh_image).byte().cpu().numpy())
+            while cv2.waitKey(1) != ord("q"):
+                pass
 
         img_gpu = img_gpu * inv_alph_masks.prod(dim=0) + masks_color_summand
     
@@ -1113,11 +1120,6 @@ if __name__ == '__main__':
 
         if args.cuda:
             net = net.cuda()
-        
-        tf_model = models.get_model(num_classes=62,
-                                    size=299,
-                                    weights="imagenet")
-        print(tf_model.summary())
 
         evaluate(net, dataset)
 
