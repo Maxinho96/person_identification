@@ -166,6 +166,11 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
             # Masks are drawn on the GPU, so don't copy
             masks = t[3][idx]
         classes, scores, boxes = [x[idx].cpu().numpy() for x in t[:3]]
+        
+        if args.only_person:
+            for i, _class in enumerate(classes):
+                if _class != 0:
+                    scores[i] = -1
 
     num_dets_to_consider = min(args.top_k, classes.shape[0])
     for j in range(num_dets_to_consider):
@@ -274,7 +279,7 @@ def prep_display(dets_out, img, h, w, undo_transform=True, class_color=False, ma
 
     if args.display_text or args.display_bboxes:
         if args.identify_people:
-            with open("data/casia_gait/DatasetB_split_reduced/class_names_62.txt", "r") as person_classes_file:
+            with open("data/casia_gait/DatasetB_split_reduced/demo_class_names.txt", "r") as person_classes_file:
                 person_classes = person_classes_file.read().splitlines()
             
         for j in reversed(range(num_dets_to_consider)):
@@ -1163,9 +1168,9 @@ if __name__ == '__main__':
         
         if args.identify_people:
             global person_classifier
-            person_classifier = models.get_model(num_classes=62,
+            person_classifier = models.get_model(num_classes=14,
                                                  size=299,
-                                                 weights="checkpoints/exp16/best_weights.ckpt")
+                                                 weights="checkpoints/exp11/best_weights.ckpt")
 
         evaluate(net, dataset)
 
