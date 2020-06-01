@@ -68,7 +68,7 @@ def main(_argv):
     # Load model
     model = models.get_model(num_classes=len(class_names),
                              size=FLAGS.size,
-                             weights=FLAGS.weight_weights)
+                             weights=FLAGS.weights)
 
     # Freeze bottom layers
     for layer in model.layers[:-FLAGS.trainable_layers]:
